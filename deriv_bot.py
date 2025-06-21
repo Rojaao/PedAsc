@@ -20,6 +20,7 @@ class DerivBot:
         self.lucro_acumulado = 0.0
         self.running = True
         self.ticks = []           # lista de últimos dígitos recebidos
+        self.in_operation = False  # flag to prevent overlapping operations
 
     def log(self, msg: str):
         timestamp = datetime.now().strftime("%H:%M:%S")
@@ -36,6 +37,7 @@ class DerivBot:
             _ = ws.recv()
             ws.send(json.dumps({"ticks": self.symbol}))
             while self.running:
+                # Ensure only one operation at a time
                 resp = ws.recv()
                 if not resp:
                     continue
@@ -120,6 +122,7 @@ class DerivBot:
             self.log(f"🟢 Entrada realizada: DIGITOVER barrier=3 | Stake: ${self.stake_atual:.2f}")
 
             while self.running:
+                # Ensure only one operation at a time
                 resp3 = ws.recv()
                 if not resp3:
                     continue
@@ -139,6 +142,7 @@ class DerivBot:
                         else:
                             if self.use_martingale:
                                 self.stake_atual = round(self.stake_atual * self.factor, 2)
+                        return resultado
                         break
             ws.close()
         except Exception as e:
@@ -153,6 +157,7 @@ class DerivBot:
         thread_ticks = threading.Thread(target=self.receber_ticks, daemon=True)
         thread_ticks.start()
         while self.running:
+            # Ensure only one operation at a time
             if len(self.ticks) < self.selected_ticks:
                 self.log(f"⏳ Aguardando... {len(self.ticks)}/{self.selected_ticks} ticks recebidos.")
                 time.sleep(1)
@@ -161,8 +166,11 @@ class DerivBot:
             entrada_info = analisar_ticks_famped(self.ticks, self.percento_entrada)
             entrada = entrada_info.get("entrada", "ESPERAR")
             if entrada in ("DIGITOVER", "ENTRAR", "OVER3"):
+                if not self.in_operation:
                 self.log(f"🔎 Condição atendida. Iniciando operação...")
-                self.fazer_operacao()
+                    self.in_operation = True
+                    self.fazer_operacao()
+                    self.in_operation = False
             else:
                 abaixo_de_4 = sum(1 for d in self.ticks if d < 4)
                 perc = round((abaixo_de_4 / len(self.ticks)) * 100, 2)
