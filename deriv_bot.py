@@ -10,7 +10,7 @@ class DerivBot:
         self.stake = stake
         self.use_martingale = use_martingale
         self.factor = factor
-        self.stop_gain = stop_gain
+        self.target_profit = target_profit
         self.stop_loss = stop_loss
         self.selected_ticks = selected_ticks
         self.percento_entrada = percento_entrada
