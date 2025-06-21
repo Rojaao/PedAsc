@@ -1,10 +1,4 @@
 def analisar_ticks_famped(ticks, percentual_minimo):
-    """
-    Recebe lista `ticks` (inteiros 0–9) e percentual mínimo (ex: 65).
-    Retorna dict com:
-      - 'entrada': "DIGITOVER" ou "ESPERAR"
-      - 'estrategia': descrição ou percentual calculado.
-    """
     total = len(ticks)
     if total == 0:
         return {"entrada": "ESPERAR", "estrategia": "sem ticks"}
