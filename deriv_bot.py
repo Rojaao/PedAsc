@@ -16,11 +16,11 @@ class DerivBot:
         self.selected_ticks = selected_ticks
         self.percento_entrada = percento_entrada
         self.logs = []            # lista de strings de log: "[HH:MM:SS] Mensagem"
-        self.resultados = []      # lista de tuplas (hora, "WIN"/"LOSS", stake_usado)
+        self.resultados = []      # lista de tuplas (hora, resultado, stake_usado)
+        self.profits = []         # lista de profits individuais
         self.lucro_acumulado = 0.0
         self.running = True
         self.ticks = []           # lista de últimos dígitos recebidos
-        self.in_operation = False  # flag to prevent overlapping operations
 
     def log(self, msg: str):
         timestamp = datetime.now().strftime("%H:%M:%S")
@@ -37,7 +37,6 @@ class DerivBot:
             _ = ws.recv()
             ws.send(json.dumps({"ticks": self.symbol}))
             while self.running:
-                # Ensure only one operation at a time
                 resp = ws.recv()
                 if not resp:
                     continue
@@ -59,6 +58,8 @@ class DerivBot:
                 pass
 
     def fazer_operacao(self):
+        resultado = None
+        profit = 0.0
         try:
             ws = websocket.WebSocket()
             ws.connect("wss://ws.binaryws.com/websockets/v3?app_id=1089")
@@ -67,13 +68,15 @@ class DerivBot:
             if not auth_resp:
                 self.log("❌ Erro: sem resposta de auth")
                 ws.close()
-                return
+                return "ERROR", 0.0
             auth = json.loads(auth_resp)
             if "error" in auth:
                 self.log("❌ Token inválido")
                 ws.close()
-                return
+                self.running = False
+                return "ERROR", 0.0
 
+            # Enviar proposal DIGITOVER barrier=3
             proposal_req = {
                 "proposal": 1,
                 "amount": round(self.stake_atual, 2),
@@ -90,39 +93,40 @@ class DerivBot:
             if not resp:
                 self.log("❌ Erro: sem resposta de proposal")
                 ws.close()
-                return
+                return "ERROR", 0.0
             data = json.loads(resp)
             if "error" in data:
-                self.log(f"❌ Erro na proposal: {data['error']}")
+                self.log(f"❌ Erro na proposal: {data.get('error')}")
                 ws.close()
-                return
+                return "ERROR", 0.0
             if "proposal" not in data or "id" not in data["proposal"]:
                 self.log("❌ Erro: resposta inesperada da Deriv (sem campo 'proposal')")
                 ws.close()
-                return
+                return "ERROR", 0.0
             proposal_id = data["proposal"]["id"]
 
+            # Enviar buy
             buy_req = {"buy": proposal_id, "price": round(self.stake_atual, 2)}
             ws.send(json.dumps(buy_req))
             resp2 = ws.recv()
             if not resp2:
                 self.log("❌ Erro: sem resposta de buy")
                 ws.close()
-                return
+                return "ERROR", 0.0
             data2 = json.loads(resp2)
             if "error" in data2:
-                self.log(f"❌ Erro no buy: {data2['error']}")
+                self.log(f"❌ Erro no buy: {data2.get('error')}")
                 ws.close()
-                return
+                return "ERROR", 0.0
             if "buy" not in data2 or "contract_id" not in data2["buy"]:
                 self.log("❌ Erro ao operar: resposta sem campo 'buy'")
                 ws.close()
-                return
+                return "ERROR", 0.0
             contract_id = data2["buy"]["contract_id"]
             self.log(f"🟢 Entrada realizada: DIGITOVER barrier=3 | Stake: ${self.stake_atual:.2f}")
 
+            # Aguardar resultado
             while self.running:
-                # Ensure only one operation at a time
                 resp3 = ws.recv()
                 if not resp3:
                     continue
@@ -135,15 +139,7 @@ class DerivBot:
                         self.log(f"🏁 Resultado: {resultado} | Lucro: ${profit:.2f}")
                         hora = datetime.now().strftime("%H:%M:%S")
                         self.resultados.append((hora, resultado, self.stake_atual))
-                        self.lucro_acumulado += profit
-                        if resultado == "WIN":
-                            self.stake_atual = self.stake_inicial
-                            self.ticks.clear()
-                        else:
-                            if self.use_martingale:
-                                self.stake_atual = round(self.stake_atual * self.factor, 2)
-                        return resultado
-                        break
+                        return resultado, profit
             ws.close()
         except Exception as e:
             self.log(f"❌ Exceção em operação: {e}")
@@ -152,31 +148,56 @@ class DerivBot:
                 ws.close()
             except:
                 pass
+        return "ERROR", 0.0
 
     def run_interface(self):
+        # Inicia coleta de ticks
         thread_ticks = threading.Thread(target=self.receber_ticks, daemon=True)
         thread_ticks.start()
+
         while self.running:
-            # Ensure only one operation at a time
+            # Aguardar ticks suficientes
             if len(self.ticks) < self.selected_ticks:
                 self.log(f"⏳ Aguardando... {len(self.ticks)}/{self.selected_ticks} ticks recebidos.")
                 time.sleep(1)
                 continue
+
+            # Mostrar dígitos analisados
             self.log(f"📊 Dígitos analisados: {self.ticks[-self.selected_ticks:]}")
+
             entrada_info = analisar_ticks_famped(self.ticks, self.percento_entrada)
             entrada = entrada_info.get("entrada", "ESPERAR")
-            if entrada in ("DIGITOVER", "ENTRAR", "OVER3"):
-                if not self.in_operation:
-                self.log(f"🔎 Condição atendida. Iniciando operação...")
-                    self.in_operation = True
-                    self.fazer_operacao()
-                    self.in_operation = False
+            if entrada == "DIGITOVER":
+                self.log("🔎 Condição atendida. Iniciando operação...")
+                # Martingale imediato: repetir se LOSS
+                while self.running:
+                    resultado, profit = self.fazer_operacao()
+                    if resultado not in ("WIN", "LOSS"):
+                        # erro ou parada
+                        break
+                    # armazenar profit
+                    self.profits.append(profit)
+                    self.lucro_acumulado += profit
+                    if resultado == "LOSS" and self.use_martingale:
+                        self.log("🔄 Aplicando martingale: próxima entrada imediata")
+                        self.stake_atual = round(self.stake_atual * self.factor, 2)
+                        continue
+                    # em WIN ou sem martingale, reset stake e ticks
+                    if resultado == "WIN":
+                        self.stake_atual = self.stake_inicial
+                    else:
+                        # LOSS sem martingale
+                        self.stake_atual = self.stake_inicial
+                    self.ticks.clear()
+                    break
             else:
                 abaixo_de_4 = sum(1 for d in self.ticks if d < 4)
                 perc = round((abaixo_de_4 / len(self.ticks)) * 100, 2)
                 self.log(f"🔍 Aguardando oportunidade... ({perc}% < 4)")
                 time.sleep(1)
                 continue
+
+            # Após operações, verificar stops
             if self.lucro_acumulado >= self.target_profit:
                 self.log("🎯 Meta de lucro atingida. Parando o robô.")
                 self.running = False
@@ -185,4 +206,5 @@ class DerivBot:
                 self.log("🛑 Stop Loss atingido. Parando o robô.")
                 self.running = False
                 break
+
         self.log("⚙️ Robô parado.")

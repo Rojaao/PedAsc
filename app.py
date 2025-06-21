@@ -16,11 +16,12 @@ stop_loss = st.number_input("Stop Loss", min_value=0.0, value=10.0, step=0.5)
 selected_ticks = st.selectbox("Analisar últimos ticks", [33, 50, 100, 200])
 percentual_minimo = st.selectbox("Percentual mínimo <4 para entrada", [40, 65, 70, 80])
 
-# Placeholders de UI
+# Placeholders
 placeholder_logs = st.empty()
 placeholder_lucro = st.empty()
+placeholder_chart = st.empty()
 
-# Estado do bot em session_state
+# Estado do bot
 if "bot" not in st.session_state:
     st.session_state.bot = None
 if "running" not in st.session_state:
@@ -55,29 +56,35 @@ else:
         st.session_state.running = False
         st.success("Robô parado pelo usuário")
 
-# Loop de atualização sem st.experimental_rerun
+# Loop de atualização
 if st.session_state.running and st.session_state.bot:
     bot = st.session_state.bot
-    # Atualiza por um certo período ou até o bot parar
+    # Atualizar UI por um período razoável
     for _ in range(1000):
         if not st.session_state.running:
             break
-        # Exibir lucro acumulado
+        # Lucro acumulado
         lucro = bot.lucro_acumulado
         if lucro >= 0:
-            placeholder_lucro.success(f"💰 Lucro acumulado: +${{lucro:.2f}}")
+            placeholder_lucro.success(f"💰 Lucro acumulado: +${lucro:.2f}")
         else:
-            placeholder_lucro.error(f"📉 Lucro acumulado: -${{abs(lucro):.2f}}")
-        # Exibir últimos logs
+            placeholder_lucro.error(f"📉 Lucro acumulado: -${abs(lucro):.2f}")
+        # Logs
         logs = bot.logs[-12:] if len(bot.logs) >= 12 else bot.logs
         placeholder_logs.text("\n".join(logs) if logs else "Aguardando ticks...")
+        # Chart evolução
+        if hasattr(bot, "profits") and bot.profits:
+            cum = 0.0
+            evol = []
+            for p in bot.profits:
+                cum += p
+                evol.append(cum)
+            placeholder_chart.line_chart(evol)
         time.sleep(2)
-    # Ao sair do loop, marca como parado se ainda estivesse rodando
     if st.session_state.running:
         st.session_state.running = False
         st.success("Execução de atualização concluída.")
 else:
-    # Estado inicial ou exibe logs finais
     if st.session_state.bot and st.session_state.bot.logs:
         placeholder_logs.text("\n".join(st.session_state.bot.logs[-12:]))
     else:
