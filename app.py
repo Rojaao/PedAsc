@@ -23,7 +23,7 @@ with st.sidebar:
     percento_entrada = st.selectbox("🎯 Critério para entrada (<4)", [40, 65, 70, 80])
 
 if st.button("🚀 Iniciar Robô"):
-    st.session_state.stframe = st.empty()
+    st.empty() = st.empty()
     log_area = st.empty()
 
     bot = DerivBot(token, symbol, stake, use_martingale, factor, target_profit, stop_loss, selected_ticks, percento_entrada)
@@ -35,9 +35,9 @@ if st.button("🚀 Iniciar Robô"):
             if hasattr(bot, "lucro_acumulado"):
                 lucro = bot.lucro_acumulado
                 if lucro >= 0:
-                    st.session_state.stframe.success(f"💰 Lucro acumulado: +${lucro:.2f}")
+                    st.empty().success(f"💰 Lucro acumulado: +${lucro:.2f}")
                 else:
-                    st.session_state.stframe.error(f"💸 Lucro acumulado: -${abs(lucro):.2f}")
+                    st.empty().error(f"💸 Lucro acumulado: -${abs(lucro):.2f}")
             log_area.text("\n".join(st.session_state.logs[-12:]))
             time.sleep(2)
 
