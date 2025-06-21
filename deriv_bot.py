@@ -7,6 +7,7 @@ class DerivBot:
                  target_profit, stop_loss, selected_ticks, percento_entrada):
         self.token = token
         self.symbol = symbol
+        # Ensure stake_inicial from parameter
         self.stake_inicial = stake
         self.stake_atual = stake
         self.use_martingale = use_martingale
@@ -139,6 +140,7 @@ class DerivBot:
                         self.log(f"🏁 Resultado: {resultado} | Lucro: ${profit:.2f}")
                         hora = datetime.now().strftime("%H:%M:%S")
                         self.resultados.append((hora, resultado, self.stake_atual))
+                        ws.close()
                         return resultado, profit
             ws.close()
         except Exception as e:
@@ -170,6 +172,7 @@ class DerivBot:
             if entrada == "DIGITOVER":
                 self.log("🔎 Condição atendida. Iniciando operação...")
                 # Martingale imediato: repetir se LOSS
+                first_loss = True
                 while self.running:
                     resultado, profit = self.fazer_operacao()
                     if resultado not in ("WIN", "LOSS"):
@@ -177,17 +180,22 @@ class DerivBot:
                         break
                     # armazenar profit
                     self.profits.append(profit)
+                    # Atualiza lucro acumulado
                     self.lucro_acumulado += profit
                     if resultado == "LOSS" and self.use_martingale:
-                        self.log("🔄 Aplicando martingale: próxima entrada imediata")
-                        self.stake_atual = round(self.stake_atual * self.factor, 2)
+                        # Aumenta stake para próxima operação sem nova análise
+                        new_stake = round(self.stake_atual * self.factor, 2)
+                        self.log(f"🔄 LOSS detectado. Aplicando martingale: stake ajustada de ${self.stake_atual:.2f} para ${new_stake:.2f}")
+                        self.stake_atual = new_stake
+                        # no próximo loop entra imediatamente
                         continue
-                    # em WIN ou sem martingale, reset stake e ticks
+                    # após WIN ou sem martingale, reset stake e ticks
                     if resultado == "WIN":
                         self.stake_atual = self.stake_inicial
                     else:
-                        # LOSS sem martingale
+                        # LOSS sem martingale: reset stake para inicial
                         self.stake_atual = self.stake_inicial
+                    # limpar ticks para nova análise
                     self.ticks.clear()
                     break
             else:
