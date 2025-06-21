@@ -7,7 +7,7 @@ class DerivBot:
                  target_profit, stop_loss, selected_ticks, percento_entrada):
         self.token = token
         self.symbol = symbol
-        # Ensure stake_inicial from parameter
+        # Initialize stake values from parameter
         self.stake_inicial = stake
         self.stake_atual = stake
         self.use_martingale = use_martingale
@@ -17,11 +17,12 @@ class DerivBot:
         self.selected_ticks = selected_ticks
         self.percento_entrada = percento_entrada
         self.logs = []            # lista de strings de log: "[HH:MM:SS] Mensagem"
-        self.resultados = []      # lista de tuplas (hora, resultado, stake_usado)
+        self.resultados = []      # lista de tuplas (hora, resultado, stake_usado, profit)
         self.profits = []         # lista de profits individuais
         self.lucro_acumulado = 0.0
         self.running = True
         self.ticks = []           # lista de últimos dígitos recebidos
+        self.in_operation = False  # flag to prevent overlapping operations
 
     def log(self, msg: str):
         timestamp = datetime.now().strftime("%H:%M:%S")
@@ -139,7 +140,7 @@ class DerivBot:
                         resultado = "WIN" if profit > 0 else "LOSS"
                         self.log(f"🏁 Resultado: {resultado} | Lucro: ${profit:.2f}")
                         hora = datetime.now().strftime("%H:%M:%S")
-                        self.resultados.append((hora, resultado, self.stake_atual))
+                        self.resultados.append((hora, resultado, self.stake_atual, profit))
                         ws.close()
                         return resultado, profit
             ws.close()
@@ -167,37 +168,39 @@ class DerivBot:
             # Mostrar dígitos analisados
             self.log(f"📊 Dígitos analisados: {self.ticks[-self.selected_ticks:]}")
 
+            # Se já em operação, aguarda resultado antes de nova análise
+            if self.in_operation:
+                time.sleep(1)
+                continue
+
             entrada_info = analisar_ticks_famped(self.ticks, self.percento_entrada)
             entrada = entrada_info.get("entrada", "ESPERAR")
             if entrada == "DIGITOVER":
                 self.log("🔎 Condição atendida. Iniciando operação...")
+                # Inicia operação
+                self.in_operation = True
                 # Martingale imediato: repetir se LOSS
-                first_loss = True
                 while self.running:
                     resultado, profit = self.fazer_operacao()
                     if resultado not in ("WIN", "LOSS"):
-                        # erro ou parada
                         break
                     # armazenar profit
                     self.profits.append(profit)
-                    # Atualiza lucro acumulado
                     self.lucro_acumulado += profit
                     if resultado == "LOSS" and self.use_martingale:
                         # Aumenta stake para próxima operação sem nova análise
                         new_stake = round(self.stake_atual * self.factor, 2)
                         self.log(f"🔄 LOSS detectado. Aplicando martingale: stake ajustada de ${self.stake_atual:.2f} para ${new_stake:.2f}")
                         self.stake_atual = new_stake
-                        # no próximo loop entra imediatamente
                         continue
                     # após WIN ou sem martingale, reset stake e ticks
                     if resultado == "WIN":
                         self.stake_atual = self.stake_inicial
                     else:
-                        # LOSS sem martingale: reset stake para inicial
                         self.stake_atual = self.stake_inicial
-                    # limpar ticks para nova análise
                     self.ticks.clear()
                     break
+                self.in_operation = False
             else:
                 abaixo_de_4 = sum(1 for d in self.ticks if d < 4)
                 perc = round((abaixo_de_4 / len(self.ticks)) * 100, 2)

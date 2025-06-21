@@ -8,7 +8,7 @@ st.title("🤖 Robô Famped - Estratégia Over 3 baseada em ticks")
 
 token = st.text_input("🎯 Token da Deriv", type="password")
 symbol = st.selectbox("Símbolo", ["R_100", "R_10"])
-stake = st.number_input("Stake Inicial", min_value=0.01, step=0.01, value=0.37)
+stake = st.number_input("Stake Inicial", min_value=0.01, step=0.01, value=0.41)
 use_martingale = st.checkbox("Usar Martingale", value=True)
 factor = st.number_input("Fator de Martingale", min_value=1.0, step=0.1, value=2.0)
 target_profit = st.number_input("Meta de Lucro", min_value=0.0, value=10.0, step=0.5)
