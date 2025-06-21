@@ -12,6 +12,8 @@ class DerivBot:
         self.factor = factor
         self.stop_gain = stop_gain
         self.stop_loss = stop_loss
+        self.selected_ticks = selected_ticks
+        self.percento_entrada = percento_entrada
         self.max_losses = max_losses
 
         self.logs = []
