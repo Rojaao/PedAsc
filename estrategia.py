@@ -1,12 +1,11 @@
+def analisar_ticks_famped(ticks, percentual_minimo):
+    if not ticks or len(ticks) == 0:
+        return {"entrada": "ESPERAR", "estrategia": "famped"}
 
-def analisar_ticks(ticks, percentual_minimo):
-    if len(ticks) == 0:
-        return {"entrada": "ESPERAR", "estrategia": "Famped"}
-
-    qtd_abaixo_4 = sum(1 for d in ticks if d < 4)
-    percentual = (qtd_abaixo_4 / len(ticks)) * 100
+    abaixo_de_4 = sum(1 for tick in ticks if tick < 4)
+    percentual = (abaixo_de_4 / len(ticks)) * 100
 
     if percentual >= percentual_minimo:
-        return {"entrada": "OVER", "estrategia": f"Famped {percentual_minimo}%"}
+        return {"entrada": "OVER3", "estrategia": "famped"}
     else:
-        return {"entrada": "ESPERAR", "estrategia": f"Famped {percentual_minimo}%"}
+        return {"entrada": "ESPERAR", "estrategia": "famped"}
