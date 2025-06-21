@@ -36,7 +36,7 @@ class DerivBot:
         ws_op.send(json.dumps({"authorize": self.token}))
         auth_response = json.loads(ws_op.recv())
         if 'error' in auth_response:
-        st.error("❌ Token inválido")
+    st.error("❌ Token inválido")
         return
 
         st.success(f"✅ Conectado | Conta: {'Real' if auth_response['authorize']['is_virtual']==0 else 'Demo'}")
