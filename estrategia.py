@@ -5,3 +5,6 @@ def analisar_ticks(ticks, percentual_minimo):
     digitos_abaixo_de_4 = sum(1 for tick in ticks if tick < 4)
     percentual = (digitos_abaixo_de_4 / len(ticks)) * 100
     return percentual >= percentual_minimo  # Agora usa >= em vez de >
+
+# Alias para manter compatibilidade com deriv_bot.py
+analisar_ticks_famped = analisar_ticks
