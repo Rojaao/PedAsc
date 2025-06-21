@@ -4,7 +4,7 @@ import streamlit as st
 from estrategia import analisar_ticks
 
 class DerivBot:
-def __init__(self, token, symbol, stake, use_martingale, factor, max_loss, target_profit, selected_ticks, percento_entrada):
+    def __init__(self, token, symbol, stake, use_martingale, factor, max_loss, target_profit, selected_ticks, percento_entrada):
         self.token = token
         self.symbol = symbol
         self.stake = stake
@@ -20,8 +20,7 @@ def __init__(self, token, symbol, stake, use_martingale, factor, max_loss, targe
         self.logs = []
         self.resultados = []
 
-def run_interface(self):
-        stframe = st.empty()
+        def run_interface(self):        stframe = st.empty()
         plot_area = st.empty()
 
         # WS 1: Ticks
@@ -52,8 +51,7 @@ def run_interface(self):
         stake = stake_inicial
         martingale_nivel = 0
 
-def receber_ticks():
-        nonlocal ticks
+        def receber_ticks():        nonlocal ticks
         while True:
         try:
         tick_msg = json.loads(ws_ticks.recv())
