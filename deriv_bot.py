@@ -64,7 +64,7 @@ class DerivBot:
                                 ticks = ticks[-100:]
                 except Exception as e:
                     self.logs.append(f"❌ Erro nos ticks: {str(e)}")
-                    stframe.text("\n".join(self.logs[-12:]))
+                    st.session_state['log_status'] = "\n".join(self.logs[-12:]))
                     time.sleep(2)
 
         threading.Thread(target=receber_ticks, daemon=True).start()
@@ -86,7 +86,7 @@ class DerivBot:
 
             if entrada == "ESPERAR":
                 self.logs.append("⏸ Aguardando oportunidade...")
-                stframe.text("\n".join(self.logs[-12:]))
+                st.session_state['log_status'] = "\n".join(self.logs[-12:]))
                 time.sleep(2)
                 continue
 
@@ -113,7 +113,7 @@ class DerivBot:
 
             if result.get("msg_type") != "buy" or "buy" not in result:
                 self.logs.append("❌ Erro: resposta inesperada da Deriv (sem campo 'buy')")
-                stframe.text("\n".join(self.logs[-12:]))
+                st.session_state['log_status'] = "\n".join(self.logs[-12:]))
                 time.sleep(3)
                 continue
 
@@ -154,7 +154,7 @@ class DerivBot:
             self.logs.append(log)
             self.resultados.append(1 if resultado == "WIN" else -1)
 
-            stframe.text("\n".join(self.logs[-12:]))
+            st.session_state['log_status'] = "\n".join(self.logs[-12:]))
             plot_area.pyplot(plot_resultados(self.resultados))
 
             if ganho_total >= self.target_profit:

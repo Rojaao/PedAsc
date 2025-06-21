@@ -20,6 +20,14 @@ start = st.button("🚀 Iniciar Robô")
 if start and token:
     stframe = st.empty()
     st.session_state.stframe = stframe
+    st.session_state['log_status'] = '🔄 Iniciando...'
+    stframe.text(st.session_state['log_status'])
+    import threading
+    def atualizar_status():
+        while True:
+            st.session_state.stframe.text(st.session_state['log_status'])
+            time.sleep(1)
+    threading.Thread(target=atualizar_status, daemon=True).start()
     stframe.text("🔄 Iniciando robô...")
     bot = DerivBot(token, symbol, stake, use_martingale, factor, max_loss, target_profit, analisar_ultimos, percentual_minimo)
     import threading
