@@ -1,7 +1,7 @@
 
-import websocket, json, time, threading
-import streamlit as st
-from estrategia import analisar_ticks
+        import websocket, json, time, threading
+        import streamlit as st
+        from estrategia import analisar_ticks
 
 class DerivBot:
     def __init__(self, token, symbol, stake, use_martingale, factor, max_loss, target_profit, selected_ticks, percento_entrada):
@@ -20,7 +20,7 @@ class DerivBot:
         self.logs = []
         self.resultados = []
 
-    def run_interface(self):
+        def run_interface(self):
         stframe = st.empty()
         plot_area = st.empty()
 
@@ -37,8 +37,8 @@ class DerivBot:
         ws_op.send(json.dumps({"authorize": self.token}))
         auth_response = json.loads(ws_op.recv())
         if 'error' in auth_response:
-            st.error("❌ Token inválido")
-            return
+        st.error("❌ Token inválido")
+        return
 
         st.success(f"✅ Conectado | Conta: {'Real' if auth_response['authorize']['is_virtual']==0 else 'Demo'}")
 
@@ -53,117 +53,117 @@ class DerivBot:
         martingale_nivel = 0
 
         def receber_ticks():
-            nonlocal ticks
-            while True:
-                try:
-                    tick_msg = json.loads(ws_ticks.recv())
-                    if tick_msg.get("msg_type") == "tick":
-                        with lock:
-                            ticks.append(int(str(tick_msg["tick"]["quote"])[-1]))
-                            if len(ticks) > 100:
-                                ticks = ticks[-100:]
-                except Exception as e:
-                    self.logs.append(f"❌ Erro nos ticks: {str(e)}")
-                    st.session_state['log_status'] = "\n".join(self.logs[-12:]))
-                    time.sleep(2)
+        nonlocal ticks
+        while True:
+        try:
+        tick_msg = json.loads(ws_ticks.recv())
+        if tick_msg.get("msg_type") == "tick":
+        with lock:
+        ticks.append(int(str(tick_msg["tick"]["quote"])[-1]))
+        if len(ticks) > 100:
+        ticks = ticks[-100:]
+        except Exception as e:
+        self.logs.append(f"❌ Erro nos ticks: {str(e)}")
+        st.session_state['log_status'] = "\n".join(self.logs[-12:]))
+        time.sleep(2)
 
         threading.Thread(target=receber_ticks, daemon=True).start()
 
         while True:
-            with lock:
-                if len(ticks) >= 33:
-                    ultimos_ticks = ticks[-33:]
-                else:
-                    ultimos_ticks = []
+        with lock:
+        if len(ticks) >= 33:
+        ultimos_ticks = ticks[-33:]
+        else:
+        ultimos_ticks = []
 
-            if not ultimos_ticks:
-                time.sleep(1)
-                continue
+        if not ultimos_ticks:
+        time.sleep(1)
+        continue
 
-            analise = analisar_ticks(ultimos_ticks)
-            entrada = analise['entrada']
-            estrategia = analise['estrategia']
+        analise = analisar_ticks(ultimos_ticks)
+        entrada = analise['entrada']
+        estrategia = analise['estrategia']
 
-            if entrada == "ESPERAR":
-                self.logs.append("⏸ Aguardando oportunidade...")
-                st.session_state['log_status'] = "\n".join(self.logs[-12:]))
-                time.sleep(2)
-                continue
+        if entrada == "ESPERAR":
+        self.logs.append("⏸ Aguardando oportunidade...")
+        st.session_state['log_status'] = "\n".join(self.logs[-12:]))
+        time.sleep(2)
+        continue
 
-            barrier = entrada.split()[-1]
+        barrier = entrada.split()[-1]
 
-            contrato = {
-                "buy": 1,
-                "price": round(stake, 2),
-                "parameters": {
-                    "amount": round(stake, 2),
-                    "basis": "stake",
-                    "contract_type": "DIGITOVER",
-                    "currency": "USD",
-                    "duration": 1,
-                    "duration_unit": "t",
-                    "symbol": self.symbol,
-                    "barrier": barrier
-                },
-                "req_id": 1
-            }
+        contrato = {
+        "buy": 1,
+        "price": round(stake, 2),
+        "parameters": {
+        "amount": round(stake, 2),
+        "basis": "stake",
+        "contract_type": "DIGITOVER",
+        "currency": "USD",
+        "duration": 1,
+        "duration_unit": "t",
+        "symbol": self.symbol,
+        "barrier": barrier
+        },
+        "req_id": 1
+        }
 
-            ws_op.send(json.dumps(contrato))
-            result = json.loads(ws_op.recv())
+        ws_op.send(json.dumps(contrato))
+        result = json.loads(ws_op.recv())
 
-            if result.get("msg_type") != "buy" or "buy" not in result:
-                self.logs.append("❌ Erro: resposta inesperada da Deriv (sem campo 'buy')")
-                st.session_state['log_status'] = "\n".join(self.logs[-12:]))
-                time.sleep(3)
-                continue
+        if result.get("msg_type") != "buy" or "buy" not in result:
+        self.logs.append("❌ Erro: resposta inesperada da Deriv (sem campo 'buy')")
+        st.session_state['log_status'] = "\n".join(self.logs[-12:]))
+        time.sleep(3)
+        continue
 
-            buy_id = result["buy"]["contract_id"]
-            resultado = "Desconhecido"
+        buy_id = result["buy"]["contract_id"]
+        resultado = "Desconhecido"
 
-            for _ in range(20):
-                time.sleep(1)
-                ws_op.send(json.dumps({
-                    "proposal_open_contract": 1,
-                    "contract_id": buy_id
-                }))
-                res = json.loads(ws_op.recv())
-                if res.get("msg_type") == "proposal_open_contract":
-                    contrato_info = res["proposal_open_contract"]
-                    if contrato_info.get("is_sold"):
-                        lucro = contrato_info.get("profit", 0)
-                        resultado = "WIN" if lucro > 0 else "LOSS"
-                        break
+        for _ in range(20):
+        time.sleep(1)
+        ws_op.send(json.dumps({
+        "proposal_open_contract": 1,
+        "contract_id": buy_id
+        }))
+        res = json.loads(ws_op.recv())
+        if res.get("msg_type") == "proposal_open_contract":
+        contrato_info = res["proposal_open_contract"]
+        if contrato_info.get("is_sold"):
+        lucro = contrato_info.get("profit", 0)
+        resultado = "WIN" if lucro > 0 else "LOSS"
+        break
 
-            if resultado == "WIN":
-                ganho_total += stake
-                consecutivas = 0
-                stake = stake_inicial
-                martingale_nivel = 0
-                self.logs.append(f"✅ WIN | Lucro: +${round(lucro, 2)} | Stake: {round(stake, 2)}")
-            else:
-                ganho_total -= stake
-                consecutivas += 1
-                if self.use_martingale:
-                    martingale_nivel += 1
-                    stake = round(stake_inicial * (self.factor ** martingale_nivel), 2)
-                    self.logs.append(f"❌ LOSS | Martingale nível {martingale_nivel} | Próxima stake: {stake}")
-                else:
-                    self.logs.append(f"❌ LOSS | Prejuízo: -${round(stake, 2)}")
+        if resultado == "WIN":
+        ganho_total += stake
+        consecutivas = 0
+        stake = stake_inicial
+        martingale_nivel = 0
+        self.logs.append(f"✅ WIN | Lucro: +${round(lucro, 2)} | Stake: {round(stake, 2)}")
+        else:
+        ganho_total -= stake
+        consecutivas += 1
+        if self.use_martingale:
+        martingale_nivel += 1
+        stake = round(stake_inicial * (self.factor ** martingale_nivel), 2)
+        self.logs.append(f"❌ LOSS | Martingale nível {martingale_nivel} | Próxima stake: {stake}")
+        else:
+        self.logs.append(f"❌ LOSS | Prejuízo: -${round(stake, 2)}")
 
-            log = f"[{time.strftime('%H:%M:%S')}] Estratégia: {estrategia} | Entrada: {entrada} | Resultado: {resultado}"
-            self.logs.append(log)
-            self.resultados.append(1 if resultado == "WIN" else -1)
+        log = f"[{time.strftime('%H:%M:%S')}] Estratégia: {estrategia} | Entrada: {entrada} | Resultado: {resultado}"
+        self.logs.append(log)
+        self.resultados.append(1 if resultado == "WIN" else -1)
 
-            st.session_state['log_status'] = "\n".join(self.logs[-12:]))
-            plot_area.pyplot(plot_resultados(self.resultados))
+        st.session_state['log_status'] = "\n".join(self.logs[-12:]))
+        plot_area.pyplot(plot_resultados(self.resultados))
 
-            if ganho_total >= self.target_profit:
-                self.logs.append("🎯 Meta de lucro atingida. Parando o robô.")
-                break
-                self.logs.append("🛑 Stop Loss ou limite de perdas consecutivas atingido.")
-                break
+        if ganho_total >= self.target_profit:
+        self.logs.append("🎯 Meta de lucro atingida. Parando o robô.")
+        break
+        self.logs.append("🛑 Stop Loss ou limite de perdas consecutivas atingido.")
+        break
 
-            with lock:
-                ticks.clear()
+        with lock:
+        ticks.clear()
 
-            time.sleep(5)
+        time.sleep(5)
