@@ -1,7 +1,7 @@
 
 import websocket, json, time, threading
 import streamlit as st
-from estrategia import analisar_ticks_famped
+from estrategia import analisar_ticks
 
 class DerivBot:
     def __init__(self, token, symbol, stake, use_martingale, factor, stop_gain, stop_loss, max_losses):
@@ -77,7 +77,7 @@ class DerivBot:
                 time.sleep(1)
                 continue
 
-            analise = analisar_ticks_famped(ultimos_ticks)
+            analise = analisar_ticks(ultimos_ticks)
             entrada = analise['entrada']
             estrategia = analise['estrategia']
 
