@@ -16,19 +16,16 @@ stop_loss = st.number_input("Stop Loss", min_value=0.0, value=10.0, step=0.5)
 selected_ticks = st.selectbox("Analisar últimos ticks", [33, 50, 100, 200])
 percentual_minimo = st.selectbox("Percentual mínimo <4 para entrada", [40, 65, 70, 80])
 
-# Placeholders
 placeholder_logs = st.empty()
 placeholder_lucro = st.empty()
 placeholder_chart = st.empty()
 
-# Estado do bot
 if "bot" not in st.session_state:
     st.session_state.bot = None
 if "running" not in st.session_state:
     st.session_state.running = False
 
 def iniciar_robo():
-    # Use the stake from input
     bot = DerivBot(
         token=token,
         symbol=symbol,
@@ -44,7 +41,6 @@ def iniciar_robo():
     st.session_state.running = True
     threading.Thread(target=bot.run_interface, daemon=True).start()
 
-# Botão iniciar/parar
 if not st.session_state.running:
     if st.button("🚀 Iniciar Robô"):
         if not token:
@@ -57,22 +53,18 @@ else:
         st.session_state.running = False
         st.success("Robô parado pelo usuário")
 
-# Loop de atualização
 if st.session_state.running and st.session_state.bot:
     bot = st.session_state.bot
     for _ in range(1000):
         if not st.session_state.running:
             break
-        # Lucro acumulado
         lucro = bot.lucro_acumulado
         if lucro >= 0:
             placeholder_lucro.success(f"💰 Lucro acumulado: +${lucro:.2f}")
         else:
             placeholder_lucro.error(f"📉 Lucro acumulado: -${abs(lucro):.2f}")
-        # Logs
         logs = bot.logs[-12:] if len(bot.logs) >= 12 else bot.logs
         placeholder_logs.text("\n".join(logs) if logs else "Aguardando ticks...")
-        # Chart evolução
         if hasattr(bot, "profits") and bot.profits:
             cum = 0.0
             evol = []

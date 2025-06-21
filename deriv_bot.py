@@ -7,7 +7,6 @@ class DerivBot:
                  target_profit, stop_loss, selected_ticks, percento_entrada):
         self.token = token
         self.symbol = symbol
-        # Initialize stake values from parameter
         self.stake_inicial = stake
         self.stake_atual = stake
         self.use_martingale = use_martingale
@@ -16,13 +15,13 @@ class DerivBot:
         self.stop_loss = stop_loss
         self.selected_ticks = selected_ticks
         self.percento_entrada = percento_entrada
-        self.logs = []            # lista de strings de log: "[HH:MM:SS] Mensagem"
-        self.resultados = []      # lista de tuplas (hora, resultado, stake_usado, profit)
-        self.profits = []         # lista de profits individuais
+        self.logs = []
+        self.resultados = []
+        self.profits = []
         self.lucro_acumulado = 0.0
         self.running = True
-        self.ticks = []           # lista de últimos dígitos recebidos
-        self.in_operation = False  # flag to prevent overlapping operations
+        self.ticks = []
+        self.in_operation = False
 
     def log(self, msg: str):
         timestamp = datetime.now().strftime("%H:%M:%S")
@@ -78,7 +77,6 @@ class DerivBot:
                 self.running = False
                 return "ERROR", 0.0
 
-            # Enviar proposal DIGITOVER barrier=3
             proposal_req = {
                 "proposal": 1,
                 "amount": round(self.stake_atual, 2),
@@ -108,7 +106,6 @@ class DerivBot:
                 return "ERROR", 0.0
             proposal_id = data["proposal"]["id"]
 
-            # Enviar buy
             buy_req = {"buy": proposal_id, "price": round(self.stake_atual, 2)}
             ws.send(json.dumps(buy_req))
             resp2 = ws.recv()
@@ -129,18 +126,15 @@ class DerivBot:
             contract_id = data2["buy"]["contract_id"]
             self.log(f"🟢 Entrada enviada: DIGITOVER barrier=3 | Stake: ${self.stake_atual:.2f} | Contract ID: {contract_id}")
 
-            # Subscribe to contract result
-            sub_req = {"subscribe": 1, "proposal_open_contract": contract_id}
+            # Correct subscription: use proposal_open_contract:1 and contract_id field
+            sub_req = {"proposal_open_contract": 1, "contract_id": contract_id}
             ws.send(json.dumps(sub_req))
 
-            # Aguardar resultado
             while self.running:
                 resp3 = ws.recv()
                 if not resp3:
                     continue
                 data3 = json.loads(resp3)
-                # Log for debugging
-                # self.log(f"DEBUG resp3: {data3}")
                 if "proposal_open_contract" in data3:
                     poc = data3["proposal_open_contract"]
                     if poc.get("is_sold"):
@@ -162,21 +156,17 @@ class DerivBot:
         return "ERROR", 0.0
 
     def run_interface(self):
-        # Inicia coleta de ticks
         thread_ticks = threading.Thread(target=self.receber_ticks, daemon=True)
         thread_ticks.start()
 
         while self.running:
-            # Aguardar ticks suficientes
             if len(self.ticks) < self.selected_ticks:
                 self.log(f"⏳ Aguardando... {len(self.ticks)}/{self.selected_ticks} ticks recebidos.")
                 time.sleep(1)
                 continue
 
-            # Mostrar dígitos analisados
             self.log(f"📊 Dígitos analisados: {self.ticks[-self.selected_ticks:]}")
 
-            # Se já em operação, aguarda resultado antes de nova análise
             if self.in_operation:
                 time.sleep(1)
                 continue
@@ -185,23 +175,18 @@ class DerivBot:
             entrada = entrada_info.get("entrada", "ESPERAR")
             if entrada == "DIGITOVER":
                 self.log("🔎 Condição atendida. Iniciando operação...")
-                # Inicia operação
                 self.in_operation = True
-                # Martingale imediato: repetir se LOSS
                 while self.running:
                     resultado, profit = self.fazer_operacao()
                     if resultado not in ("WIN", "LOSS"):
                         break
-                    # armazenar profit
                     self.profits.append(profit)
                     self.lucro_acumulado += profit
                     if resultado == "LOSS" and self.use_martingale:
-                        # Aumenta stake para próxima operação sem nova análise
                         new_stake = round(self.stake_atual * self.factor, 2)
-                        self.log(f"🔄 LOSS detectado. Aplicando martingale: stake ajustada de ${self.stake_atual:.2f} para ${new_stake:.2f}")
+                        self.log(f"🔄 LOSS detectado. Aplicando martingale: stake ajustada para ${new_stake:.2f}")
                         self.stake_atual = new_stake
                         continue
-                    # após WIN ou sem martingale, reset stake e ticks
                     if resultado == "WIN":
                         self.stake_atual = self.stake_inicial
                     else:
@@ -216,7 +201,6 @@ class DerivBot:
                 time.sleep(1)
                 continue
 
-            # Após operações, verificar stops
             if self.lucro_acumulado >= self.target_profit:
                 self.log("🎯 Meta de lucro atingida. Parando o robô.")
                 self.running = False
