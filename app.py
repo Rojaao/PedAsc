@@ -16,8 +16,14 @@ percentual_minimo = st.selectbox("Percentual mínimo de dígitos abaixo de 4", [
 analisar_ultimos = st.selectbox("Quantidade de ticks para analisar", [33, 50, 100, 200])
 
 if st.button("🚀 Iniciar Robô"):
-    st.session_state.stframe = st.empty()
-    log_area = st.empty()
+    if "stframe" not in st.session_state:
+        st.session_state.stframe = st.empty()
+    if "log_area" not in st.session_state:
+        st.session_state.log_area = st.empty()
+    if "log_status" not in st.session_state:
+        st.session_state.log_status = []
+
+    st.session_state.stframe.info("🔄 Iniciando conexão com a corretora...")
 
     bot = DerivBot(
         token=token,
@@ -38,7 +44,7 @@ if st.button("🚀 Iniciar Robô"):
                 st.session_state.stframe.success(f"💰 Lucro acumulado: +${lucro:.2f}")
             else:
                 st.session_state.stframe.error(f"📉 Lucro acumulado: -${abs(lucro):.2f}")
-            log_area.text("\n".join(st.session_state.get("log_status", [])))
+            st.session_state.log_area.text("\n".join(st.session_state.get("log_status", [])))
             time.sleep(2)
 
     threading.Thread(target=bot.run_interface, daemon=True).start()
