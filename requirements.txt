@@ -1,3 +1,0 @@
-streamlit
-websocket-client
-matplotlib
