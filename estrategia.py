@@ -1,10 +1,12 @@
 
 def analisar_ticks(ticks, percentual_minimo):
     if len(ticks) == 0:
-        return False
-    digitos_abaixo_de_4 = sum(1 for tick in ticks if tick < 4)
-    percentual = (digitos_abaixo_de_4 / len(ticks)) * 100
-    return percentual >= percentual_minimo  # Agora usa >= em vez de >
+        return {"entrada": "ESPERAR", "estrategia": "Famped"}
 
-# Alias para manter compatibilidade com deriv_bot.py
-analisar_ticks_famped = analisar_ticks
+    qtd_abaixo_4 = sum(1 for d in ticks if d < 4)
+    percentual = (qtd_abaixo_4 / len(ticks)) * 100
+
+    if percentual >= percentual_minimo:
+        return {"entrada": "OVER", "estrategia": f"Famped {percentual_minimo}%"}
+    else:
+        return {"entrada": "ESPERAR", "estrategia": f"Famped {percentual_minimo}%"}
