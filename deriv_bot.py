@@ -1,167 +1,115 @@
-
-import websocket, json, time, threading
+import websocket
+import json
 import streamlit as st
-from estrategia import analisar_ticks
+import threading
+import time
+from estrategia import analisar_ticks_famped
 
 class DerivBot:
-    def __init__(self, token, symbol, stake, use_martingale, factor, max_loss, target_profit, selected_ticks, percento_entrada):
+    def __init__(self, token, symbol, stake, use_martingale, factor, target_profit, stop_loss, selected_ticks, percento_entrada):
         self.token = token
         self.symbol = symbol
         self.stake = stake
         self.use_martingale = use_martingale
         self.factor = factor
         self.target_profit = target_profit
-        self.max_loss = max_loss
+        self.stop_loss = stop_loss
         self.selected_ticks = selected_ticks
         self.percento_entrada = percento_entrada
-        self.selected_ticks = selected_ticks
-        self.percento_entrada = percento_entrada
-
         self.logs = []
-        self.resultados = []
+        self.lucro_acumulado = 0
+        self.stake_atual = stake
 
-    def run_interface(self):        stframe = st.empty()
-        plot_area = st.empty()
+    def run_interface(self):
+        ws = websocket.create_connection("wss://ws.binaryws.com/websockets/v3?app_id=1089")
+        ws.send(json.dumps({"authorize": self.token}))
+        auth_response = json.loads(ws.recv())
 
-        # WS 1: Ticks
-        ws_ticks = websocket.WebSocket()
-        ws_ticks.connect("wss://ws.binaryws.com/websockets/v3?app_id=1089")
-        ws_ticks.send(json.dumps({"authorize": self.token}))
-        ws_ticks.recv()  # descartar auth de ticks
-        ws_ticks.send(json.dumps({"ticks": self.symbol}))
-
-        # WS 2: Operações
-        ws_op = websocket.WebSocket()
-        ws_op.connect("wss://ws.binaryws.com/websockets/v3?app_id=1089")
-        ws_op.send(json.dumps({"authorize": self.token}))
-        auth_response = json.loads(ws_op.recv())
         if 'error' in auth_response:
-        st.error("❌ Token inválido")
-        return
+            st.session_state['log_status'] = '❌ Token inválido'
+            return
 
-        st.success(f"✅ Conectado | Conta: {'Real' if auth_response['authorize']['is_virtual']==0 else 'Demo'}")
+        st.session_state['log_status'] = f"✅ Conectado | Conta: {'Real' if auth_response['authorize']['is_virtual'] == 0 else 'Demo'}"
 
-        ticks = []
-        lock = threading.Lock()
+        st.session_state['log_status'] += f"\n🔄 Analisando últimos {self.selected_ticks} ticks com {self.percento_entrada}%"
+        threading.Thread(target=self.receber_ticks, daemon=True).start()
 
-        saldo = 0
-        consecutivas = 0
-        ganho_total = 0
-        stake_inicial = self.stake
-        stake = stake_inicial
-        martingale_nivel = 0
-
-    def receber_ticks():        nonlocal ticks
-        while True:
+    def receber_ticks(self):
         try:
-        tick_msg = json.loads(ws_ticks.recv())
-        if tick_msg.get("msg_type") == "tick":
-        with lock:
-        ticks.append(int(str(tick_msg["tick"]["quote"])[-1]))
-        if len(ticks) > 100:
-        ticks = ticks[-100:]
+            ws = websocket.create_connection("wss://ws.binaryws.com/websockets/v3?app_id=1089")
+            ws.send(json.dumps({"ticks": self.symbol}))
+            ticks = []
+            while True:
+                tick_msg = json.loads(ws.recv())
+                if 'tick' in tick_msg:
+                    ticks.append(int(str(tick_msg["tick"]["quote"])[-1]))
+                    if len(ticks) > self.selected_ticks:
+                        ticks.pop(0)
+
+                    analise = analisar_ticks_famped(ticks, self.percento_entrada)
+                    if analise["entrada"] == "OVER3":
+                        self.fazer_operacao()
+                        ticks.clear()
         except Exception as e:
-        self.logs.append(f"❌ Erro nos ticks: {str(e)}")
-        st.session_state['log_status'] = "\n".join(self.logs[-12:])
-        time.sleep(2)
+            st.session_state['log_status'] = f"❌ Erro nos ticks: {str(e)}"
 
-        threading.Thread(target=receber_ticks, daemon=True).start()
+    def fazer_operacao(self):
+        try:
+            ws = websocket.create_connection("wss://ws.binaryws.com/websockets/v3?app_id=1089")
+            ws.send(json.dumps({"authorize": self.token}))
+            ws.recv()
 
-        while True:
-        with lock:
-        if len(ticks) >= 33:
-        ultimos_ticks = ticks[-33:]
-        else:
-        ultimos_ticks = []
+            proposal = {
+                "buy": "1",
+                "price": self.stake_atual,
+                "parameters": {
+                    "amount": self.stake_atual,
+                    "basis": "stake",
+                    "contract_type": "CALL",
+                    "currency": "USD",
+                    "duration": 1,
+                    "duration_unit": "t",
+                    "symbol": self.symbol,
+                    "barrier": "3"
+                },
+                "passthrough": {},
+                "req_id": 1
+            }
 
-        if not ultimos_ticks:
-        time.sleep(1)
-        continue
+            ws.send(json.dumps({"proposal": proposal["parameters"]}))
+            proposta = json.loads(ws.recv())
 
-        analise = analisar_ticks(ultimos_ticks)
-        entrada = analise['entrada']
-        estrategia = analise['estrategia']
+            ws.send(json.dumps({
+                "buy": proposta["proposal"]["id"],
+                "price": self.stake_atual
+            }))
+            resultado = json.loads(ws.recv())
 
-        if entrada == "ESPERAR":
-        self.logs.append("⏸ Aguardando oportunidade...")
-        st.session_state['log_status'] = "\n".join(self.logs[-12:])
-        time.sleep(2)
-        continue
+            if "buy" not in resultado:
+                self.logs.append("❌ Erro: resposta inesperada da Deriv (sem campo 'buy')")
+                return
 
-        barrier = entrada.split()[-1]
+            contrato_id = resultado["buy"]["contract_id"]
+            self.logs.append(f"🟡 Entrada enviada | Valor: {self.stake_atual}")
 
-        contrato = {
-        "buy": 1,
-        "price": round(stake, 2),
-        "parameters": {
-        "amount": round(stake, 2),
-        "basis": "stake",
-        "contract_type": "DIGITOVER",
-        "currency": "USD",
-        "duration": 1,
-        "duration_unit": "t",
-        "symbol": self.symbol,
-        "barrier": barrier
-        },
-        "req_id": 1
-        }
+            while True:
+                ws.send(json.dumps({"proposal_open_contract": 1, "contract_id": contrato_id}))
+                status = json.loads(ws.recv())
+                if "proposal_open_contract" in status and status["proposal_open_contract"]["is_sold"]:
+                    lucro = status["proposal_open_contract"]["profit"]
+                    if lucro > 0:
+                        self.logs.append(f"✅ WIN | Lucro: {lucro:.2f}")
+                        self.lucro_acumulado += lucro
+                        self.stake_atual = self.stake
+                    else:
+                        self.logs.append(f"❌ LOSS | Prejuízo: {lucro:.2f}")
+                        self.lucro_acumulado += lucro
+                        if self.use_martingale:
+                            self.stake_atual *= self.factor
+                    break
+                time.sleep(1)
 
-        ws_op.send(json.dumps(contrato))
-        result = json.loads(ws_op.recv())
-
-        if result.get("msg_type") != "buy" or "buy" not in result:
-        self.logs.append("❌ Erro: resposta inesperada da Deriv (sem campo 'buy')")
-        st.session_state['log_status'] = "\n".join(self.logs[-12:])
-        time.sleep(3)
-        continue
-
-        buy_id = result["buy"]["contract_id"]
-        resultado = "Desconhecido"
-
-        for _ in range(20):
-        time.sleep(1)
-        ws_op.send(json.dumps({
-        "proposal_open_contract": 1,
-        "contract_id": buy_id
-        }))
-        res = json.loads(ws_op.recv())
-        if res.get("msg_type") == "proposal_open_contract":
-        contrato_info = res["proposal_open_contract"]
-        if contrato_info.get("is_sold"):
-        lucro = contrato_info.get("profit", 0)
-        resultado = "WIN" if lucro > 0 else "LOSS"
-        break
-
-        if resultado == "WIN":
-        ganho_total += stake
-        consecutivas = 0
-        stake = stake_inicial
-        martingale_nivel = 0
-        self.logs.append(f"✅ WIN | Lucro: +${round(lucro, 2)} | Stake: {round(stake, 2)}")
-        else:
-        ganho_total -= stake
-        consecutivas += 1
-        if self.use_martingale:
-        martingale_nivel += 1
-        stake = round(stake_inicial * (self.factor ** martingale_nivel), 2)
-        self.logs.append(f"❌ LOSS | Martingale nível {martingale_nivel} | Próxima stake: {stake}")
-        else:
-        self.logs.append(f"❌ LOSS | Prejuízo: -${round(stake, 2)}")
-
-        log = f"[{time.strftime('%H:%M:%S')}] Estratégia: {estrategia} | Entrada: {entrada} | Resultado: {resultado}"
-        self.logs.append(log)
-        self.resultados.append(1 if resultado == "WIN" else -1)
-
-        st.session_state['log_status'] = "\n".join(self.logs[-12:])
-        plot_area.pyplot(plot_resultados(self.resultados))
-
-        if ganho_total >= self.target_profit:
-        self.logs.append("🎯 Meta de lucro atingida. Parando o robô.")
-        break
-        self.logs.append("🛑 Stop Loss ou limite de perdas consecutivas atingido.")
-        break
-
-        with lock:
-        ticks.clear()
-
-        time.sleep(5)
+            st.session_state['log_status'] = "\n".join(self.logs[-10:])
+        except Exception as e:
+            self.logs.append(f"❌ Erro ao operar: {str(e)}")
+            st.session_state['log_status'] = "\n".join(self.logs[-10:])
