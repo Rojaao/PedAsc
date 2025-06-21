@@ -126,7 +126,6 @@ class DerivBot:
             contract_id = data2["buy"]["contract_id"]
             self.log(f"🟢 Entrada enviada: DIGITOVER barrier=3 | Stake: ${self.stake_atual:.2f} | Contract ID: {contract_id}")
 
-            # Correct subscription: use proposal_open_contract:1 and contract_id field
             sub_req = {"proposal_open_contract": 1, "contract_id": contract_id}
             ws.send(json.dumps(sub_req))
 
@@ -176,17 +175,22 @@ class DerivBot:
             if entrada == "DIGITOVER":
                 self.log("🔎 Condição atendida. Iniciando operação...")
                 self.in_operation = True
+                # Martingale imediato: após perda, repete sem nova análise
+                first = True
                 while self.running:
                     resultado, profit = self.fazer_operacao()
                     if resultado not in ("WIN", "LOSS"):
                         break
                     self.profits.append(profit)
                     self.lucro_acumulado += profit
+                    # Se LOSS e martingale, aplica stake_atual e repete
                     if resultado == "LOSS" and self.use_martingale:
-                        new_stake = round(self.stake_atual * self.factor, 2)
-                        self.log(f"🔄 LOSS detectado. Aplicando martingale: stake ajustada para ${new_stake:.2f}")
+                        new_stake = round(self.stake_atual * self.factor, 2) if not first else round(self.stake_inicial * self.factor, 2)
+                        self.log(f"🔄 LOSS: aplicando martingale de ${self.stake_atual:.2f} para ${new_stake:.2f}")
                         self.stake_atual = new_stake
+                        first = False
                         continue
+                    # Se WIN ou sem martingale: reset stake e limpar ticks
                     if resultado == "WIN":
                         self.stake_atual = self.stake_inicial
                     else:
