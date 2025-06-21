@@ -11,7 +11,7 @@ class DerivBot:
         self.use_martingale = use_martingale
         self.factor = factor
         self.target_profit = target_profit
-        self.stop_loss = stop_loss
+        self.max_loss = max_loss
         self.selected_ticks = selected_ticks
         self.percento_entrada = percento_entrada
         self.selected_ticks = selected_ticks
@@ -161,7 +161,7 @@ class DerivBot:
             if ganho_total >= self.target_profit:
                 self.logs.append("🎯 Meta de lucro atingida. Parando o robô.")
                 break
-            if ganho_total <= -self.stop_loss or consecutivas >= self.max_losses:
+            if ganho_total <= -self.max_loss or consecutivas >= self.max_losses:
                 self.logs.append("🛑 Stop Loss ou limite de perdas consecutivas atingido.")
                 break
 
