@@ -51,4 +51,11 @@ if st.button("▶️ Iniciar Robô"):
         if hasattr(bot, "logs"):
             st.session_state.logs = bot.logs
             log_area.text("\n".join(st.session_state.logs[-12:]))
+    # Mostrar lucro acumulado em verde ou vermelho
+    lucro = bot.lucro_acumulado if hasattr(bot, "lucro_acumulado") else 0
+    if lucro >= 0:
+        st.success(f"💰 Lucro acumulado: +${lucro:.2f}")
+    else:
+        st.error(f"💸 Lucro acumulado: -${abs(lucro):.2f}")
+
         time.sleep(2)
