@@ -17,6 +17,9 @@ stop_gain = st.number_input("🎯 Meta de lucro (USD)", min_value=1.0, value=10.
 stop_loss = st.number_input("🛑 Limite de perda (USD)", min_value=1.0, value=10.0)
 max_losses = st.number_input("❌ Máx. perdas consecutivas", min_value=1, value=3)
 
+percento_entrada = st.selectbox("🎯 Porcentagem mínima de dígitos < 4 para entrar", [65, 70, 80])
+qtd_ticks = st.selectbox("📊 Quantidade de ticks para analisar", [33, 50, 200])
+
 stframe = st.empty()
 lucro_display = st.empty()
 alerta_final = st.empty()
@@ -65,18 +68,18 @@ if st.button("🚀 Iniciar Robô"):
             msg = json.loads(ws_ticks.recv())
             if msg.get("msg_type") == "tick":
                 ticks.append(int(str(msg["tick"]["quote"])[-1]))
-                if len(ticks) > 100:
-                    ticks = ticks[-100:]
+                if len(ticks) > qtd_ticks:
+                    ticks = ticks[-qtd_ticks:]
         except:
             time.sleep(1)
             continue
 
-        if len(ticks) < 33:
+        if len(ticks) < qtd_ticks:
             stframe.text("⏳ Aguardando ticks suficientes para análise...")
             time.sleep(1)
             continue
 
-        analise = analisar_ticks_famped(ticks[-33:])
+        analise = analisar_ticks_famped(ticks, percento_entrada)
         entrada = analise['entrada']
         estrategia = analise['estrategia']
 
@@ -139,6 +142,7 @@ if st.button("🚀 Iniciar Robô"):
             stake_atual = stake_inicial
             martingale_nivel = 0
             stframe.text(f"✅ WIN | +${round(lucro, 2)} | Stake: {round(stake_atual, 2)}")
+            ticks.clear()  # reseta análise após win
         else:
             ganho_total -= stake_atual
             consecutivas += 1
@@ -160,5 +164,4 @@ if st.button("🚀 Iniciar Robô"):
             alerta_final.error("💀 Perdeu doidão! Stop Loss atingido.")
             break
 
-        ticks.clear()
         time.sleep(5)

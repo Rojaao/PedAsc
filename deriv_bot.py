@@ -2,7 +2,6 @@
 import websocket, json, time, threading
 import streamlit as st
 from estrategia import analisar_ticks_famped
-from utils import plot_resultados
 
 class DerivBot:
     def __init__(self, token, symbol, stake, use_martingale, factor, stop_gain, stop_loss, max_losses):
