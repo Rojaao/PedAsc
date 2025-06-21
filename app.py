@@ -58,4 +58,13 @@ if st.button("▶️ Iniciar Robô"):
     else:
         st.error(f"💸 Lucro acumulado: -${abs(lucro):.2f}")
 
+        
+    # Histórico de operações com horário
+    if hasattr(bot, "resultados"):
+        st.subheader("📜 Histórico de Operações")
+        for entrada in reversed(bot.resultados[-20:]):
+            hora, resultado, stake_usado = entrada
+            cor = "✅" if resultado == "WIN" else "❌"
+            st.write(f"{cor} {hora} — Resultado: {resultado} — Stake: ${stake_usado:.2f}")
+
         time.sleep(2)
