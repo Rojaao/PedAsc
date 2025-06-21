@@ -6,7 +6,7 @@ import websocket
 import json
 
 st.set_page_config(page_title="Robô Famped Deriv", layout="centered")
-st.title("🤖 Robô  - Estratégia PEDASC")
+st.title("🤖 Robô Deriv - Estratégia FAMPED")
 
 token = st.text_input("🔑 Token da API (Demo ou Real)", type="password")
 symbol = st.selectbox("📈 Ativo para operar", ["R_100", "R_10"])
