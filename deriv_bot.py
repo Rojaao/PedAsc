@@ -4,7 +4,7 @@ import streamlit as st
 from estrategia import analisar_ticks
 
 class DerivBot:
-    def __init__(self, token, symbol, stake, use_martingale, factor, stop_gain, stop_loss, max_losses):
+    def __init__(self, token, symbol, stake, use_martingale, factor, max_loss, target_profit, selected_ticks, percento_entrada):
         self.token = token
         self.symbol = symbol
         self.stake = stake
@@ -12,6 +12,8 @@ class DerivBot:
         self.factor = factor
         self.stop_gain = stop_gain
         self.stop_loss = stop_loss
+        self.selected_ticks = selected_ticks
+        self.percento_entrada = percento_entrada
         self.selected_ticks = selected_ticks
         self.percento_entrada = percento_entrada
         self.max_losses = max_losses
