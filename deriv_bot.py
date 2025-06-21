@@ -7,6 +7,7 @@ class DerivBot:
                  target_profit, stop_loss, selected_ticks, percento_entrada):
         self.token = token
         self.symbol = symbol
+        # Initialize stake values from parameter
         self.stake_inicial = stake
         self.stake_atual = stake
         self.use_martingale = use_martingale
@@ -77,6 +78,9 @@ class DerivBot:
                 self.running = False
                 return "ERROR", 0.0
 
+            # Log stake before operation
+            self.log(f"Stake atual antes da operação: ${self.stake_atual:.2f}")
+
             proposal_req = {
                 "proposal": 1,
                 "amount": round(self.stake_atual, 2),
@@ -126,7 +130,7 @@ class DerivBot:
             contract_id = data2["buy"]["contract_id"]
             self.log(f"🟢 Entrada enviada: DIGITOVER barrier=3 | Stake: ${self.stake_atual:.2f} | Contract ID: {contract_id}")
 
-            # Subscribe corretamente
+            # Subscribe result
             sub_req = {"proposal_open_contract": 1, "contract_id": contract_id}
             ws.send(json.dumps(sub_req))
 
@@ -134,13 +138,17 @@ class DerivBot:
                 resp3 = ws.recv()
                 if not resp3:
                     continue
+                self.log(f"DEBUG raw result response: {resp3}")
                 data3 = json.loads(resp3)
                 if "proposal_open_contract" in data3:
                     poc = data3["proposal_open_contract"]
-                    if poc.get("is_sold"):
-                        profit = float(poc.get("profit", 0))
+                    sold = poc.get("is_sold")
+                    profit_val = poc.get("profit")
+                    self.log(f"DEBUG proposal_open_contract: is_sold={sold}, profit={profit_val}")
+                    if sold:
+                        profit = float(profit_val or 0)
                         resultado = "WIN" if profit > 0 else "LOSS"
-                        self.log(f"🏁 Resultado: {resultado} | Lucro: ${profit:.2f}")
+                        self.log(f"🏁 Resultado detectado: {resultado} | Lucro: ${profit:.2f}")
                         hora = datetime.now().strftime("%H:%M:%S")
                         self.resultados.append((hora, resultado, self.stake_atual, profit))
                         ws.close()
@@ -161,7 +169,7 @@ class DerivBot:
         thread_ticks.start()
 
         while self.running:
-            # Se já em operação, aguarda a finalização da sequência de martingale
+            # Se já em operação, aguarda finalização da sequência
             if self.in_operation:
                 time.sleep(0.5)
                 continue
@@ -187,31 +195,36 @@ class DerivBot:
             # Condição atendida: iniciar sequência de operações (martingale)
             self.log("🔎 Condição atendida. Iniciando sequência de operações (martingale se necessário)...")
             self.in_operation = True
-            # Definir stake atual para primeira operação
+            # Garantir stake atual começa com stake inicial
             self.stake_atual = self.stake_inicial
+            self.log(f"Stake inicial para sequência: ${self.stake_inicial:.2f}")
 
+            # Sequência de operações (martingale)
             while self.running:
                 resultado, profit = self.fazer_operacao()
                 if resultado not in ("WIN", "LOSS"):
-                    self.log(f"❌ Resultado inesperado ({resultado}), abortando sequência de martingale.")
+                    self.log(f"❌ Fazer operação retornou inesperado: {resultado}. Abortando sequência de martingale.")
                     break
+                # Armazenar resultado e atualizar lucro
                 self.profits.append(profit)
                 self.lucro_acumulado += profit
+                self.log(f"🏁 Registro: Resultado {resultado}, Profit: {profit:.2f}, Lucro acumulado agora: {self.lucro_acumulado:.2f}")
 
                 if resultado == "LOSS" and self.use_martingale:
-                    new_stake = round(self.stake_atual * self.factor, 2)
-                    self.log(f"🔄 LOSS detectado. Aplicando martingale: stake ajustada de ${self.stake_atual:.2f} para ${new_stake:.2f}")
-                    self.stake_atual = new_stake
-                    # repetir imediatamente
+                    novo_stake = round(self.stake_atual * self.factor, 2)
+                    self.log(f"🔄 LOSS detectado. Aplicando martingale de ${self.stake_atual:.2f} para ${novo_stake:.2f}")
+                    self.stake_atual = novo_stake
+                    # Repetir sem reanálise
                     continue
                 else:
                     if resultado == "WIN":
-                        self.log(f"✅ WIN. Resetando stake para {self.stake_inicial} e reiniciando análise.")
+                        self.log(f"✅ WIN. Resetando stake para {self.stake_inicial} e retomar análise.")
                     else:
-                        self.log(f"❌ LOSS sem martingale. Resetando stake para {self.stake_inicial} e reiniciando análise.")
+                        self.log(f"❌ LOSS sem martingale. Resetando stake para {self.stake_inicial} e retomar análise.")
                     self.stake_atual = self.stake_inicial
                     self.ticks.clear()
                     break
+            # Fim sequência
             self.in_operation = False
 
             # Verificar stops após sequência
