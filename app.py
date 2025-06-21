@@ -23,10 +23,10 @@ with st.sidebar:
     percento_entrada = st.selectbox("🎯 Critério para entrada (<4)", [40, 65, 70, 80])
 
 if st.button("🚀 Iniciar Robô"):
-stframe = st.empty()
-    log_area = st.empty()
+    stframe = st.empty()
+        log_area = st.empty()
 
-    bot = DerivBot(token, symbol, stake, use_martingale, factor, target_profit, stop_loss, selected_ticks, percento_entrada)
+        bot = DerivBot(token, symbol, stake, use_martingale, factor, target_profit, stop_loss, selected_ticks, percento_entrada)
 
     def atualizar_status():
         while True:
