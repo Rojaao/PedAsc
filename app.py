@@ -8,7 +8,7 @@ st.title("🤖 Robô Famped - Estratégia Over 3 baseada em ticks")
 
 token = st.text_input("🎯 Token da Deriv", type="password")
 symbol = st.selectbox("Símbolo", ["R_100", "R_10"])
-stake = st.number_input("Stake Inicial", min_value=0.01, step=0.01, value=0.41)
+stake = st.number_input("Stake Inicial", min_value=0.01, step=0.01, value=0.75)
 use_martingale = st.checkbox("Usar Martingale", value=True)
 factor = st.number_input("Fator de Martingale", min_value=1.0, step=0.1, value=2.0)
 target_profit = st.number_input("Meta de Lucro", min_value=0.0, value=10.0, step=0.5)
@@ -16,7 +16,6 @@ stop_loss = st.number_input("Stop Loss", min_value=0.0, value=10.0, step=0.5)
 selected_ticks = st.selectbox("Analisar últimos ticks", [33, 50, 100, 200])
 percentual_minimo = st.selectbox("Percentual mínimo <4 para entrada", [40, 65, 70, 80])
 
-# Debug: show stake on creation
 if st.button("🚀 Debug: Mostrar Stake Corrente"):
     st.write(f"Stake atual (input): {stake}")
 
@@ -41,7 +40,7 @@ def iniciar_robo():
         selected_ticks=selected_ticks,
         percento_entrada=percentual_minimo
     )
-    st.write(f"Debug: Criando DerivBot com stake={stake}")
+    st.write(f"[DEBUG] Criando DerivBot com stake={stake}, use_martingale={use_martingale}")
     st.session_state.bot = bot
     st.session_state.running = True
     threading.Thread(target=bot.run_interface, daemon=True).start()
