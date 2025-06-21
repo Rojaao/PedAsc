@@ -3,7 +3,7 @@ import json
 import streamlit as st
 import threading
 import time
-from estrategia import analisar_ticks_famped
+from estrategia_famped import analisar_ticks_famped
 
 class DerivBot:
     def __init__(self, token, symbol, stake, use_martingale, factor, target_profit, stop_loss, selected_ticks, percento_entrada):
