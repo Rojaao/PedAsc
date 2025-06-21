@@ -16,7 +16,6 @@ class DerivBot:
         self.percento_entrada = percento_entrada
         self.selected_ticks = selected_ticks
         self.percento_entrada = percento_entrada
-        self.max_losses = max_losses
 
         self.logs = []
         self.resultados = []
@@ -161,7 +160,6 @@ class DerivBot:
             if ganho_total >= self.target_profit:
                 self.logs.append("🎯 Meta de lucro atingida. Parando o robô.")
                 break
-            if ganho_total <= -self.max_loss or consecutivas >= self.max_losses:
                 self.logs.append("🛑 Stop Loss ou limite de perdas consecutivas atingido.")
                 break
 
