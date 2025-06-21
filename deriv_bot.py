@@ -158,7 +158,7 @@ class DerivBot:
             stframe.text("\n".join(self.logs[-12:]))
             plot_area.pyplot(plot_resultados(self.resultados))
 
-            if ganho_total >= self.stop_gain:
+            if ganho_total >= self.target_profit:
                 self.logs.append("🎯 Meta de lucro atingida. Parando o robô.")
                 break
             if ganho_total <= -self.stop_loss or consecutivas >= self.max_losses:
