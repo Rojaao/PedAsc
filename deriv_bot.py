@@ -100,7 +100,8 @@ class DerivBot:
 
     def run_interface(self):
         while self.running:
-            if len(self.ticks) < self.selected_ticks:
+                        if len(self.ticks) < self.selected_ticks:
+                self.log(f"⏳ Aguardando... {len(self.ticks)}/{self.selected_ticks} ticks recebidos.")
                 time.sleep(1)
                 continue
 
@@ -110,7 +111,9 @@ class DerivBot:
             if entrada_info.get("entrada") == "ENTRAR":
                 self.fazer_operacao()
             else:
-                self.log("🔍 Aguardando oportunidade...")
+                                count_baixo = sum(1 for d in self.ticks[-self.selected_ticks:] if d < 4)
+                perc = (count_baixo / self.selected_ticks) * 100
+                self.log(f"🔍 Aguardando oportunidade... ({perc:.1f}% < 4)")
 
             time.sleep(2)
 
