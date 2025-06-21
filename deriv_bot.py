@@ -63,12 +63,12 @@ class DerivBot:
                 "proposal": 1,
                 "amount": self.stake_atual,
                 "basis": "stake",
-                "contract_type": "CALL",
+                "contract_type": "DIGITOVER",
                 "currency": "USD",
                 "duration": 1,
                 "duration_unit": "t",
                 "symbol": self.symbol,
-                "barrier": "3"
+                "barrier": 3
             }
 
             ws.send(json.dumps(proposal))
