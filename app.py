@@ -5,7 +5,7 @@ import time
 import websocket
 import json
 
-st.set_page_config(page_title="Robô Famped Deriv", layout="centered")
+st.set_page_config(page_title="PedroASC -Ascencão da familia", layout="centered")
 st.title("🤖 Robô Deriv - Estratégia FAMPED")
 
 token = st.text_input("🔑 Token da API (Demo ou Real)", type="password")
